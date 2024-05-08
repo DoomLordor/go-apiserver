@@ -49,11 +49,11 @@ func (s *Server) Configuration(api []Api, authFunc AuthFunc) error {
 	s.router.Use(m.RecoveryMiddleware)
 	s.router.HandleFunc("/healthy", healthCheckHandler).Methods(http.MethodGet)
 	s.router.HandleFunc("/logger", setLogLevel).Methods(http.MethodPost)
-	routerRest := s.router.PathPrefix("/api/v1/").Subrouter()
+	routerRest := s.router.PathPrefix("/api/v1").Subrouter()
 	routerRest.Use(m.CommonMiddleware)
 	routerRest.Use(m.TimeMiddleware)
 
-	routerWs := s.router.PathPrefix("/ws/").Subrouter()
+	routerWs := s.router.PathPrefix("/ws").Subrouter()
 	//routerWs.Use(m.LoggingMiddleware)
 
 	for _, a := range api {
@@ -91,7 +91,7 @@ func (s *Server) Configuration(api []Api, authFunc AuthFunc) error {
 		}
 	}
 
-	routerRest.Handle("/", m.HandleWrapper(s.urls)).Methods(http.MethodGet)
+	routerRest.Handle("", m.HandleWrapper(s.urls)).Methods(http.MethodGet)
 	s.router.NotFoundHandler = s.router.NewRoute().HandlerFunc(notFound).GetHandler()
 
 	return nil

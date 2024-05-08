@@ -38,7 +38,7 @@ func NewServer(config Config) *Server {
 func (s *Server) Configuration() {
 	s.router.Handle("/metrics", promhttp.Handler()).Methods(http.MethodGet)
 
-	router := s.router.PathPrefix("/debug/pprof/").Subrouter()
+	router := s.router.PathPrefix("/debug/pprof").Subrouter()
 	router.HandleFunc("/", pprof.Index)
 	router.HandleFunc("/cmdline", pprof.Cmdline)
 	router.HandleFunc("/profile", pprof.Profile)
