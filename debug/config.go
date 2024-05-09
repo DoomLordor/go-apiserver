@@ -5,8 +5,8 @@ import (
 )
 
 type Config struct {
-	Port  uint16 `env:"DEBUG_PORT" envDefault:"8080"`
-	Debug bool   `env:"DEBUG" envDefault:"false"`
+	Active bool   `env:"DEBUG" envDefault:"false"`
+	Port   uint16 `env:"DEBUG_PORT" envDefault:"8080"`
 }
 
 func (c *Config) BindAddress() string {

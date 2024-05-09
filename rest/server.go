@@ -117,6 +117,9 @@ func (s *Server) urls(_ *http.Request) (any, int, error) {
 }
 
 func (s *Server) Start() {
+	if !s.config.Active {
+		return
+	}
 	s.logger.Info().Msg("Server rest start")
 	if err := s.httpServer.ListenAndServe(); err != nil {
 		s.logger.Fatal().Err(err).Send()

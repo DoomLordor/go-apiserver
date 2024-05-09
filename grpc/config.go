@@ -5,8 +5,9 @@ import (
 )
 
 type Config struct {
-	Host string `env:"GRPC_HOST" envDefault:"localhost"`
-	Port uint16 `env:"GRPC_PORT" envDefault:"7000"`
+	Active bool   `env:"GRPC" envDefault:"false"`
+	Host   string `env:"GRPC_HOST" envDefault:"localhost"`
+	Port   uint16 `env:"GRPC_PORT" envDefault:"7000"`
 }
 
 func (c *Config) BindAddress() string {
