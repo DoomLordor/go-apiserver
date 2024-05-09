@@ -50,7 +50,7 @@ func (s *Server) Configuration() {
 }
 
 func (s *Server) Start() {
-	if !s.config.Active {
+	if !s.Active() {
 		return
 	}
 	s.logger.Info().Msg("Server debug start")
@@ -61,4 +61,8 @@ func (s *Server) Start() {
 
 func (s *Server) Stop(ctx context.Context) error {
 	return s.httpServer.Shutdown(ctx)
+}
+
+func (s *Server) Active() bool {
+	return s.config.Active
 }

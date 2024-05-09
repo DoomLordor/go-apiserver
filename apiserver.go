@@ -43,14 +43,19 @@ func (s *APIServer) configuration(context context.Context, configurator Configur
 		if err != nil {
 			return err
 		}
-		err = s.httpServer.Configuration(adapter.Api, adapter.Auth)
-		if err != nil {
-			return err
+
+		if s.httpServer.Active() {
+			err = s.httpServer.Configuration(adapter.Api, adapter.Auth)
+			if err != nil {
+				return err
+			}
 		}
 
-		err = s.grpcServer.Configuration(adapter.Grps)
-		if err != nil {
-			return err
+		if s.grpcServer.Active() {
+			err = s.grpcServer.Configuration(adapter.Grps)
+			if err != nil {
+				return err
+			}
 		}
 	}
 

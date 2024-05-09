@@ -50,11 +50,15 @@ func (s *Server) Configuration(grps []Grps) error {
 }
 
 func (s *Server) Start() {
-	if !s.config.Active {
+	if !s.Active() {
 		return
 	}
 	s.logger.Info().Msg("Server grpc start")
 	if err := s.grpcServer.Serve(s.listener); err != nil {
 		s.logger.Err(err).Send()
 	}
+}
+
+func (s *Server) Active() bool {
+	return s.config.Active
 }
