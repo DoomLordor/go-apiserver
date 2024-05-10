@@ -2,6 +2,7 @@ package apiserver
 
 import (
 	"context"
+	"errors"
 
 	"github.com/DoomLordor/logger"
 
@@ -38,24 +39,26 @@ func (s *APIServer) Configuration(context context.Context, configurator Configur
 
 func (s *APIServer) configuration(context context.Context, configurator Configurator) error {
 
-	if configurator != nil {
-		adapter, err := configurator.Configure(context)
+	if configurator == nil {
+		return errors.New("configurator not setup")
+	}
+
+	adapter, err := configurator.Configure(context)
+	if err != nil {
+		return err
+	}
+
+	if s.httpServer.Active() {
+		err = s.httpServer.Configuration(adapter.Api, adapter.Auth)
 		if err != nil {
 			return err
 		}
+	}
 
-		if s.httpServer.Active() {
-			err = s.httpServer.Configuration(adapter.Api, adapter.Auth)
-			if err != nil {
-				return err
-			}
-		}
-
-		if s.grpcServer.Active() {
-			err = s.grpcServer.Configuration(adapter.Grps)
-			if err != nil {
-				return err
-			}
+	if s.grpcServer.Active() {
+		err = s.grpcServer.Configuration(adapter.Grps)
+		if err != nil {
+			return err
 		}
 	}
 
