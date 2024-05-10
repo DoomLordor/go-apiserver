@@ -17,12 +17,12 @@ type APIServer struct {
 	grpcServer  *grpc.Server
 }
 
-func NewServer(cr rest.Config, cd debug.Config, cg grpc.Config) *APIServer {
+func NewServer(config Config) *APIServer {
 	return &APIServer{
 		logger:      logger.NewLogger("server"),
-		httpServer:  rest.NewServer(cr),
-		debugServer: debug.NewServer(cd),
-		grpcServer:  grpc.NewServer(cg),
+		httpServer:  rest.NewServer(config.Rest),
+		debugServer: debug.NewServer(config.Debug),
+		grpcServer:  grpc.NewServer(config.Grpc),
 	}
 }
 
