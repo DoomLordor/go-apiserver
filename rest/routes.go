@@ -19,7 +19,7 @@ type RouteRest struct {
 type RoutesRest []*RouteRest
 type RouteRestMap map[string]RoutesRest
 
-type HandlerFuncWs func(conn *websocket.Conn) error
+type HandlerFuncWs func(conn *websocket.Conn) (int, error)
 
 type RouteWs struct {
 	Pattern     string

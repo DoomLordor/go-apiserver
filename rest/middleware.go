@@ -50,7 +50,7 @@ func (m *Middlewares) TokenMiddleware(next http.Handler) http.Handler {
 		header := r.Header.Get("Authorization")
 		if header == "" {
 			text := "No Authorization Header"
-			m.logger.Error().Msg(text)
+			m.logger.Warn().Msg(text)
 			w.WriteHeader(http.StatusForbidden)
 			_ = json.NewEncoder(w).Encode(ErrorResponse{Error: text})
 			return
@@ -59,7 +59,7 @@ func (m *Middlewares) TokenMiddleware(next http.Handler) http.Handler {
 
 		if len(rawToken) != 2 || rawToken[0] != "Bearer" {
 			text := "Invalid token"
-			m.logger.Error().Msg(text)
+			m.logger.Warn().Msg(text)
 			w.WriteHeader(http.StatusForbidden)
 			_ = json.NewEncoder(w).Encode(ErrorResponse{Error: text})
 			return
@@ -72,7 +72,7 @@ func (m *Middlewares) TokenMiddleware(next http.Handler) http.Handler {
 			r = r.WithContext(ctx)
 			next.ServeHTTP(w, r)
 		} else {
-			m.logger.Err(err).Send()
+			m.logger.Warn().Msg(err.Error())
 			w.WriteHeader(http.StatusForbidden)
 			_ = json.NewEncoder(w).Encode(ErrorResponse{Error: err.Error()})
 			return
@@ -163,7 +163,15 @@ func (m *Middlewares) HandleWrapper(hf HandlerFuncRest) http.Handler {
 		w.WriteHeader(code)
 		if err != nil {
 			res = ErrorResponse{Error: err.Error()}
-			m.logger.Err(err).Msgf("Method: %s, Url: %s", r.Method, r.RequestURI)
+			if code >= http.StatusInternalServerError {
+				m.logger.Err(err).Str("method", r.Method).Str("url", r.RequestURI).Send()
+			} else {
+				m.logger.Warn().
+					Str("method", r.Method).
+					Str("url", r.RequestURI).
+					Str("warning", err.Error()).
+					Send()
+			}
 		}
 		if res != nil {
 			st, ok := res.(string)
@@ -189,10 +197,16 @@ func (m *Middlewares) HandleWsWrapper(hf HandlerFuncWs) http.Handler {
 		conn.SetPongHandler(nil)
 		conn.SetCloseHandler(nil)
 
-		err = hf(conn)
+		code, err := hf(conn)
 
 		if err != nil {
-			m.logger.Err(err).Msgf("WS Url: %s", r.RequestURI)
+			switch code {
+			case websocket.CloseNormalClosure:
+				m.logger.Warn().Str("ws_url", r.RequestURI).Str("warning", err.Error()).Send()
+			default:
+				m.logger.Err(err).Str("ws_url", r.RequestURI).Send()
+			}
+
 			_ = conn.WriteJSON(
 				WsResponse{
 					Type: "errorSystem",
