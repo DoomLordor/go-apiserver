@@ -201,7 +201,8 @@ func (m *Middlewares) HandleWsWrapper(hf HandlerFuncWs) http.Handler {
 
 		if err != nil {
 			switch code {
-			case websocket.CloseNormalClosure:
+			case websocket.CloseNormalClosure, websocket.CloseInvalidFramePayloadData, websocket.ClosePolicyViolation,
+				websocket.CloseUnsupportedData:
 				m.logger.Warn().Str("ws_url", r.RequestURI).Str("warning", err.Error()).Send()
 			default:
 				m.logger.Err(err).Str("ws_url", r.RequestURI).Send()
