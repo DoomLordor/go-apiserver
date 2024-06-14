@@ -30,7 +30,7 @@ type WsResponse struct {
 	Data any    `json:"data"`
 }
 
-type AuthFunc func(token string) (any, error)
+type AuthFunc func(ctx context.Context, token string) (any, error)
 
 type Middlewares struct {
 	authFunc  AuthFunc
@@ -68,7 +68,7 @@ func (m *Middlewares) TokenMiddleware(next http.Handler) http.Handler {
 			return
 		}
 
-		if user, err := m.authFunc(token); err == nil {
+		if user, err := m.authFunc(r.Context(), token); err == nil {
 			//m.logger.Info().Msgf("Authenticated user %s\n", user)
 			ctx := context.WithValue(r.Context(), UserKey, user)
 			r = r.WithContext(ctx)
@@ -128,6 +128,10 @@ func (m *Middlewares) LoggingMiddleware(next http.Handler) http.Handler {
 			Msg("connect")
 
 		next.ServeHTTP(w, r)
+		m.logger.Info().
+			Str("url", r.RequestURI).
+			Uint64("requestId", requestId).
+			Msg("disconnect")
 	}
 	return http.HandlerFunc(f)
 }
@@ -199,7 +203,7 @@ func (m *Middlewares) HandleWsWrapper(hf HandlerFuncWs) http.Handler {
 		conn.SetPongHandler(nil)
 		conn.SetCloseHandler(nil)
 
-		code, err := hf(conn)
+		code, err := hf(r.Context(), conn)
 
 		if err != nil {
 			switch code {

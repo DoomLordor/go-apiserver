@@ -52,7 +52,7 @@ func (s *Server) Configuration(api []Api, authFunc AuthFunc) error {
 	routerRest.Use(m.TimeMiddleware)
 
 	routerWs := s.router.PathPrefix("/ws").Subrouter()
-	//routerWs.Use(m.LoggingMiddleware)
+	routerWs.Use(m.LoggingMiddleware)
 
 	for _, a := range api {
 		routeMap := a.RegistrationRest()
@@ -81,9 +81,9 @@ func (s *Server) Configuration(api []Api, authFunc AuthFunc) error {
 
 			for _, route := range routes {
 				handler := m.HandleWsWrapper(route.HandlerFunc)
-				//if route.Secure {
-				//	handler = m.TokenMiddleware(handler)
-				//}
+				if route.Secure {
+					handler = m.TokenMiddleware(handler)
+				}
 				sub.Handle(route.Pattern, handler).Methods(http.MethodGet)
 			}
 		}

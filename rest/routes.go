@@ -1,6 +1,7 @@
 package rest
 
 import (
+	"context"
 	"net/http"
 
 	"github.com/gorilla/websocket"
@@ -19,7 +20,7 @@ type RouteRest struct {
 type RoutesRest []*RouteRest
 type RouteRestMap map[string]RoutesRest
 
-type HandlerFuncWs func(conn *websocket.Conn) (int, error)
+type HandlerFuncWs func(ctx context.Context, conn *websocket.Conn) (int, error)
 
 type RouteWs struct {
 	Pattern     string
