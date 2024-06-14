@@ -45,10 +45,8 @@ func (s *Server) Configuration(api []Api, authFunc AuthFunc) error {
 		return err
 	}
 
-	m := NewMiddlewares(authFunc, logger.NewLogger("middlewares"))
+	m := NewMiddlewares(authFunc, logger.NewLogger("middlewares-rest"))
 	s.router.Use(m.RecoveryMiddleware)
-	s.router.HandleFunc("/healthy", healthCheckHandler).Methods(http.MethodGet)
-	s.router.HandleFunc("/logger", setLogLevel).Methods(http.MethodPost)
 	routerRest := s.router.PathPrefix("/api/v1").Subrouter()
 	routerRest.Use(m.CommonMiddleware)
 	routerRest.Use(m.TimeMiddleware)

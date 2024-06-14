@@ -72,15 +72,15 @@ func NewPrometheusService(config Config) (*Prometheus, error) {
 
 func (s *Prometheus) RequestMetricsMiddleware(path string, next http.Handler) http.Handler {
 	f := func(w http.ResponseWriter, r *http.Request) {
-		start := time.Now()
-		defer func() {
-			delta := time.Since(start).Seconds()
-			s.latency.WithLabelValues(path).Observe(delta)
-		}()
-		s.requestCount.WithLabelValues(path).Inc()
 
+		s.requestCount.WithLabelValues(path).Inc()
 		writer := NewLoggingResponseWriter(w)
+
+		start := time.Now()
 		next.ServeHTTP(writer, r)
+
+		delta := time.Since(start).Seconds()
+		s.latency.WithLabelValues(path).Observe(delta)
 
 		status := writer.Code()
 		if status >= http.StatusMultipleChoices {

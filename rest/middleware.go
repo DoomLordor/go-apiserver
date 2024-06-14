@@ -16,7 +16,10 @@ import (
 	"github.com/DoomLordor/logger"
 )
 
-const UserKey = "user"
+const (
+	UserKey = "user"
+	bearer  = "Bearer "
+)
 
 type ErrorResponse struct {
 	Error string `json:"error"`
@@ -55,16 +58,15 @@ func (m *Middlewares) TokenMiddleware(next http.Handler) http.Handler {
 			_ = json.NewEncoder(w).Encode(ErrorResponse{Error: text})
 			return
 		}
-		rawToken := strings.Split(header, " ")
 
-		if len(rawToken) != 2 || rawToken[0] != "Bearer" {
+		token, found := strings.CutPrefix(header, bearer)
+		if !found {
 			text := "Invalid token"
 			m.logger.Warn().Msg(text)
 			w.WriteHeader(http.StatusForbidden)
 			_ = json.NewEncoder(w).Encode(ErrorResponse{Error: text})
 			return
 		}
-		token := rawToken[1]
 
 		if user, err := m.authFunc(token); err == nil {
 			//m.logger.Info().Msgf("Authenticated user %s\n", user)

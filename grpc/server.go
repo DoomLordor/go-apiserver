@@ -3,6 +3,9 @@ package grpc
 import (
 	"net"
 
+	grpcprom "github.com/grpc-ecosystem/go-grpc-middleware/providers/prometheus"
+	"github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/recovery"
+	"github.com/prometheus/client_golang/prometheus"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
 
@@ -36,8 +39,26 @@ func (s *Server) Configuration(grps []Grps) error {
 
 	s.listener = listener
 
+	metricsCollector := grpcprom.NewServerMetrics()
+	err = prometheus.Register(metricsCollector)
+	if err != nil && err.Error() != "duplicate metrics collector registration attempted" {
+		return err
+	}
+
+	middlewares := NewMiddlewares(logger.NewLogger("middlewares-grpc"))
+
 	s.grpcServer = grpc.NewServer(
-		grpc.ChainUnaryInterceptor(),
+		grpc.ChainUnaryInterceptor(
+			metricsCollector.UnaryServerInterceptor(),
+			middlewares.TimeMiddleware(),
+			middlewares.LoggingMiddleware(),
+			recovery.UnaryServerInterceptor(middlewares.RecoveryMiddleware()),
+		),
+		grpc.ChainStreamInterceptor(
+			metricsCollector.StreamServerInterceptor(),
+			middlewares.LoggingStreamMiddleware(),
+			recovery.StreamServerInterceptor(middlewares.RecoveryMiddleware()),
+		),
 	)
 
 	for _, imp := range grps {
