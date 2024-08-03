@@ -4,12 +4,16 @@ import (
 	"context"
 	"errors"
 
+	"golang.org/x/sync/errgroup"
+
 	"github.com/DoomLordor/logger"
 
 	"github.com/DoomLordor/go-apiserver/debug"
 	"github.com/DoomLordor/go-apiserver/grpc"
 	"github.com/DoomLordor/go-apiserver/rest"
 )
+
+var ConfiguratorNotSetup = errors.New("configurator not setup")
 
 type APIServer struct {
 	logger      *logger.Logger
@@ -40,7 +44,7 @@ func (s *APIServer) Configuration(context context.Context, configurator Configur
 func (s *APIServer) configuration(context context.Context, configurator Configurator) error {
 
 	if configurator == nil {
-		return errors.New("configurator not setup")
+		return ConfiguratorNotSetup
 	}
 
 	adapter, err := configurator.Configure(context)
@@ -76,13 +80,38 @@ func (s *APIServer) Start() {
 }
 
 func (s *APIServer) stop(ctx context.Context) error {
-	return s.httpServer.Stop(ctx)
+	errGroup, _ := errgroup.WithContext(ctx)
+
+	errGroup.Go(func() error {
+		return s.httpServer.Stop(ctx)
+	})
+
+	errGroup.Go(func() error {
+		s.grpcServer.Stop()
+		return nil
+	})
+
+	errGroup.Go(func() error {
+		return s.debugServer.Stop(ctx)
+	})
+
+	return errGroup.Wait()
 }
 
-func (s *APIServer) Stop(ctx context.Context) {
-	err := s.stop(ctx)
-	if err != nil {
-		s.logger.Err(err).Send()
+func (s *APIServer) Stop(ctx context.Context, shutdown Shutdown) error {
+	errStop := s.stop(ctx)
+	if errStop != nil {
+		s.logger.Err(errStop).Send()
 	}
+
+	var errConf error
+	if shutdown != nil {
+		errConf = shutdown.Stop(ctx)
+		if errConf != nil {
+			s.logger.Err(errConf).Send()
+		}
+	}
+
 	s.logger.Info().Msg("Server stop")
+	return errors.Join(errConf, errStop)
 }

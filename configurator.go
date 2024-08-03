@@ -16,3 +16,7 @@ type Adapter struct {
 type Configurator interface {
 	Configure(ctx context.Context) (*Adapter, error)
 }
+
+type Shutdown interface {
+	Stop(ctx context.Context) error
+}

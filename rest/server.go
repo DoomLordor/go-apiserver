@@ -2,6 +2,7 @@ package rest
 
 import (
 	"context"
+	"errors"
 	"net/http"
 
 	"github.com/gorilla/mux"
@@ -119,13 +120,26 @@ func (s *Server) Start() {
 		return
 	}
 	s.logger.Info().Msg("Server rest start")
-	if err := s.httpServer.ListenAndServe(); err != nil {
+	if err := s.httpServer.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 		s.logger.Fatal().Err(err).Send()
 	}
 }
 
-func (s *Server) Stop(ctx context.Context) error {
+func (s *Server) stop(ctx context.Context) error {
 	return s.httpServer.Shutdown(ctx)
+}
+
+func (s *Server) Stop(ctx context.Context) error {
+	err := s.stop(ctx)
+	if err != nil {
+		if errors.Is(err, http.ErrServerClosed) {
+			err = nil
+		} else {
+			s.logger.Err(err).Send()
+		}
+	}
+	s.logger.Info().Msg("Server stop")
+	return err
 }
 
 func (s *Server) Active() bool {

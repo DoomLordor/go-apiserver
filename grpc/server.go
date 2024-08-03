@@ -6,6 +6,7 @@ import (
 	grpcprom "github.com/grpc-ecosystem/go-grpc-middleware/providers/prometheus"
 	"github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/recovery"
 	"github.com/prometheus/client_golang/prometheus"
+
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
 
@@ -78,6 +79,13 @@ func (s *Server) Start() {
 	if err := s.grpcServer.Serve(s.listener); err != nil {
 		s.logger.Err(err).Send()
 	}
+}
+
+func (s *Server) Stop() {
+	if !s.Active() {
+		return
+	}
+	s.grpcServer.GracefulStop()
 }
 
 func (s *Server) Active() bool {

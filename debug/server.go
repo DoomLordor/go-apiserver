@@ -2,6 +2,7 @@ package debug
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"net/http/pprof"
 	"time"
@@ -31,7 +32,7 @@ func NewServer(config Config) *Server {
 	return &Server{
 		router:     router,
 		httpServer: httpServer,
-		logger:     logger.NewLogger("rest-server"),
+		logger:     logger.NewLogger("debug-server"),
 	}
 }
 
@@ -61,8 +62,21 @@ func (s *Server) Start() {
 	}
 }
 
-func (s *Server) Stop(ctx context.Context) error {
+func (s *Server) stop(ctx context.Context) error {
 	return s.httpServer.Shutdown(ctx)
+}
+
+func (s *Server) Stop(ctx context.Context) error {
+	err := s.stop(ctx)
+	if err != nil {
+		if errors.Is(err, http.ErrServerClosed) {
+			err = nil
+		} else {
+			s.logger.Err(err).Send()
+		}
+	}
+	s.logger.Info().Msg("Server stop")
+	return err
 }
 
 func (s *Server) Active() bool {
