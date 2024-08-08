@@ -11,3 +11,8 @@ type Config struct {
 	Debug debug.Config
 	Grpc  grpc.Config
 }
+
+type JaegerConfig struct {
+	JaegerGRPCAddr string `env:"JAEGER_GRPC_ADDR" envDefault:"localhost:4317"`
+	ServiceName    string `env:"JAEGER_SERVICE_NAME" envDefault:""`
+}

@@ -6,8 +6,14 @@ import (
 	"runtime/debug"
 	"time"
 
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	otelcodes "go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/trace"
+
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
 
 	"github.com/DoomLordor/logger"
@@ -18,12 +24,14 @@ import (
 type Middlewares struct {
 	logger           *logger.Logger
 	metricsCollector *grpcprom.ServerMetrics
+	tracer           trace.Tracer
 }
 
-func NewMiddlewares(logger *logger.Logger) *Middlewares {
+func NewMiddlewares(logger *logger.Logger, tracer trace.Tracer) *Middlewares {
 	return &Middlewares{
 		logger:           logger,
 		metricsCollector: grpcprom.NewServerMetrics(),
+		tracer:           tracer,
 	}
 }
 
@@ -97,7 +105,36 @@ func (m *Middlewares) logging(fullMethod string, err error) {
 	}
 }
 
-func (m *Middlewares) MetricsMiddleware() (*grpcprom.ServerMetrics, error) {
+func (m *Middlewares) TracingMiddleware() grpc.UnaryServerInterceptor {
+	if m.tracer == nil {
+		return func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (resp interface{}, err error) {
+			return handler(ctx, req)
+		}
+	}
+	return func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (resp interface{}, err error) {
+		md, ok := metadata.FromIncomingContext(ctx)
+		if ok {
+			// Obtain parent propagator if exists
+			ctx = otel.GetTextMapPropagator().Extract(ctx, metadataCarrier(md))
+		}
+		// Start new parent or child span
+		ctx, span := m.tracer.Start(ctx, info.FullMethod)
+		defer span.End()
 
-	return m.metricsCollector, nil
+		if ok {
+			if sourceService, in := md["source-service"]; in && len(sourceService) > 0 {
+				span.SetAttributes(attribute.String("source-service", sourceService[0]))
+			}
+		}
+
+		resp, err = handler(ctx, req)
+		// Mark span status
+		if err != nil {
+			span.SetStatus(otelcodes.Error, err.Error())
+		} else {
+			span.SetStatus(otelcodes.Ok, "succeeded")
+		}
+
+		return resp, err
+	}
 }

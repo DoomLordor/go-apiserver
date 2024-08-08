@@ -6,6 +6,7 @@ import (
 	grpcprom "github.com/grpc-ecosystem/go-grpc-middleware/providers/prometheus"
 	"github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/recovery"
 	"github.com/prometheus/client_golang/prometheus"
+	"go.opentelemetry.io/otel/trace"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
@@ -32,7 +33,7 @@ func NewServer(config Config) *Server {
 	}
 }
 
-func (s *Server) Configuration(grps []Grps) error {
+func (s *Server) Configuration(grps []Grps, tracer trace.Tracer) error {
 	listener, err := net.Listen("tcp", s.config.BindAddress())
 	if err != nil {
 		return err
@@ -46,19 +47,20 @@ func (s *Server) Configuration(grps []Grps) error {
 		return err
 	}
 
-	middlewares := NewMiddlewares(logger.NewLogger("middlewares-grpc"))
+	middlewares := NewMiddlewares(logger.NewLogger("middlewares-grpc"), tracer)
 
 	s.grpcServer = grpc.NewServer(
 		grpc.ChainUnaryInterceptor(
 			metricsCollector.UnaryServerInterceptor(),
+			recovery.UnaryServerInterceptor(middlewares.RecoveryMiddleware()),
+			middlewares.TracingMiddleware(),
 			middlewares.TimeMiddleware(),
 			middlewares.LoggingMiddleware(),
-			recovery.UnaryServerInterceptor(middlewares.RecoveryMiddleware()),
 		),
 		grpc.ChainStreamInterceptor(
 			metricsCollector.StreamServerInterceptor(),
-			middlewares.LoggingStreamMiddleware(),
 			recovery.StreamServerInterceptor(middlewares.RecoveryMiddleware()),
+			middlewares.LoggingStreamMiddleware(),
 		),
 	)
 

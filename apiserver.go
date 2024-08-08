@@ -53,14 +53,14 @@ func (s *APIServer) configuration(context context.Context, configurator Configur
 	}
 
 	if s.httpServer.Active() {
-		err = s.httpServer.Configuration(adapter.Api, adapter.Auth)
+		err = s.httpServer.Configuration(adapter.Api, adapter.Auth, adapter.Tracer)
 		if err != nil {
 			return err
 		}
 	}
 
 	if s.grpcServer.Active() {
-		err = s.grpcServer.Configuration(adapter.Grps)
+		err = s.grpcServer.Configuration(adapter.Grps, adapter.Tracer)
 		if err != nil {
 			return err
 		}
@@ -91,27 +91,33 @@ func (s *APIServer) stop(ctx context.Context) error {
 		return nil
 	})
 
-	errGroup.Go(func() error {
-		return s.debugServer.Stop(ctx)
-	})
+	err := errGroup.Wait()
+	if err != nil {
+		return err
+	}
 
-	return errGroup.Wait()
+	return s.debugServer.Stop(ctx)
 }
 
 func (s *APIServer) Stop(ctx context.Context, shutdown Shutdown) error {
+	errs := make([]error, 0, 10)
+
 	errStop := s.stop(ctx)
 	if errStop != nil {
+		errs = append(errs, errStop)
 		s.logger.Err(errStop).Send()
 	}
 
-	var errConf error
 	if shutdown != nil {
-		errConf = shutdown.Stop(ctx)
-		if errConf != nil {
-			s.logger.Err(errConf).Send()
+		errs = shutdown.Stop(ctx)
+		for _, err := range errs {
+			if err != nil {
+				errs = append(errs, err)
+				s.logger.Err(err).Send()
+			}
 		}
 	}
 
 	s.logger.Info().Msg("Server stop")
-	return errors.Join(errConf, errStop)
+	return errors.Join(errs...)
 }

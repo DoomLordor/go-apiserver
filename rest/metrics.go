@@ -14,34 +14,28 @@ type Prometheus struct {
 	latency       *prometheus.HistogramVec
 }
 
-func NewPrometheusService(config Config) (*Prometheus, error) {
+func NewPrometheusService() (*Prometheus, error) {
 	requestCount := prometheus.NewCounterVec(
 		prometheus.CounterOpts{
-			Namespace: config.Namespace,
-			Subsystem: config.Subsystem,
-			Name:      "total_request",
-			Help:      "Total number of HTTP requests",
+			Name: "total_request",
+			Help: "Total number of HTTP requests",
 		},
 		[]string{"path"},
 	)
 
 	responseCount := prometheus.NewCounterVec(
 		prometheus.CounterOpts{
-			Namespace: config.Namespace,
-			Subsystem: config.Subsystem,
-			Name:      "total_response",
-			Help:      "Total number of error HTTP requests",
+			Name: "total_response",
+			Help: "Total number of error HTTP requests",
 		},
 		[]string{"path", "code"},
 	)
 
 	latency := prometheus.NewHistogramVec(
 		prometheus.HistogramOpts{
-			Namespace: config.Namespace,
-			Subsystem: config.Subsystem,
-			Name:      "request_latency",
-			Help:      "Response latency in seconds",
-			Buckets:   []float64{0.001, 0.005, 0.01, 0.05, 0.1, 0.5, 1, 2},
+			Name:    "request_latency",
+			Help:    "Response latency in seconds",
+			Buckets: []float64{0.001, 0.005, 0.01, 0.05, 0.1, 0.5, 1, 2},
 		},
 		[]string{"path"},
 	)

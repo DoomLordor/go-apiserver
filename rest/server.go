@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	"github.com/gorilla/mux"
+	"go.opentelemetry.io/otel/trace"
 
 	"github.com/DoomLordor/logger"
 )
@@ -39,14 +40,14 @@ func NewServer(config Config) *Server {
 	}
 }
 
-func (s *Server) Configuration(api []Api, authFunc AuthFunc) error {
+func (s *Server) Configuration(api []Api, authFunc AuthFunc, tracer trace.Tracer) error {
 	s.logger.Info().Msg("Router configuration")
-	metrics, err := NewPrometheusService(s.config)
+	metrics, err := NewPrometheusService()
 	if err != nil {
 		return err
 	}
 
-	m := NewMiddlewares(authFunc, logger.NewLogger("middlewares-rest"))
+	m := NewMiddlewares(authFunc, logger.NewLogger("middlewares-rest"), tracer)
 	s.router.Use(m.RecoveryMiddleware)
 	routerRest := s.router.PathPrefix("/api/v1").Subrouter()
 	routerRest.Use(m.CommonMiddleware)
@@ -61,7 +62,8 @@ func (s *Server) Configuration(api []Api, authFunc AuthFunc) error {
 			sub := routerRest.PathPrefix(prefix).Subrouter()
 
 			for _, route := range routes {
-				handler := m.HandleWrapper(route.HandlerFunc)
+				handlerFunc := m.TracingMiddleware(route.HandlerFunc)
+				handler := m.HandleWrapper(handlerFunc)
 				if route.Secure {
 					handler = m.TokenMiddleware(handler)
 				}

@@ -11,9 +11,11 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/gorilla/websocket"
+	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/trace"
 
 	"github.com/DoomLordor/logger"
+	"github.com/gorilla/websocket"
 )
 
 const (
@@ -37,14 +39,16 @@ type Middlewares struct {
 	logger    *logger.Logger
 	requestId *atomic.Uint64
 	upgrader  *websocket.Upgrader
+	tracer    trace.Tracer
 }
 
-func NewMiddlewares(authFunc AuthFunc, logger *logger.Logger) *Middlewares {
+func NewMiddlewares(authFunc AuthFunc, logger *logger.Logger, tracer trace.Tracer) *Middlewares {
 	return &Middlewares{
 		authFunc:  authFunc,
 		logger:    logger,
 		requestId: &atomic.Uint64{},
 		upgrader:  &websocket.Upgrader{},
+		tracer:    tracer,
 	}
 }
 
@@ -119,19 +123,39 @@ func (m *Middlewares) TimeMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(f)
 }
 
+func (m *Middlewares) TracingMiddleware(hf HandlerFuncRest) HandlerFuncRest {
+	if m.tracer == nil {
+		return hf
+	}
+	f := func(r *http.Request) (any, int, error) {
+		ctx, span := m.tracer.Start(r.Context(), r.RequestURI)
+		defer span.End()
+
+		res, code, err := hf(r.WithContext(ctx))
+		if err != nil {
+			span.SetStatus(codes.Error, err.Error())
+		} else {
+			span.SetStatus(codes.Ok, "succeeded")
+		}
+
+		return res, code, err
+	}
+	return f
+}
+
 func (m *Middlewares) LoggingMiddleware(next http.Handler) http.Handler {
 	f := func(w http.ResponseWriter, r *http.Request) {
 		requestId := m.requestId.Add(1)
 		m.logger.Info().
 			Str("url", r.RequestURI).
 			Uint64("requestId", requestId).
-			Msg("connect")
+			Msg("Connect")
 
 		next.ServeHTTP(w, r)
 		m.logger.Info().
 			Str("url", r.RequestURI).
 			Uint64("requestId", requestId).
-			Msg("disconnect")
+			Msg("Disconnect")
 	}
 	return http.HandlerFunc(f)
 }
@@ -152,6 +176,8 @@ func (m *Middlewares) recover(w http.ResponseWriter) {
 		switch t := r.(type) {
 		case string:
 			err = errors.New(t)
+		case []byte:
+			err = errors.New(string(t))
 		case error:
 			err = t
 		default:
