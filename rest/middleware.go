@@ -128,7 +128,7 @@ func (m *Middlewares) TracingMiddleware(hf HandlerFuncRest) HandlerFuncRest {
 		return hf
 	}
 	f := func(r *http.Request) (any, int, error) {
-		ctx, span := m.tracer.Start(r.Context(), r.RequestURI)
+		ctx, span := m.tracer.Start(r.Context(), r.URL.Path)
 		defer span.End()
 
 		res, code, err := hf(r.WithContext(ctx))
